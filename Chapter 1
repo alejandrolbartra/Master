@@ -1,0 +1,163 @@
+## packages
+
+library(ape)
+library(vegan)
+library(raster)
+library(SYNCSA)
+library(adespatial)
+
+coord # object “data.frame” equal to geographical coordinates, column 1=Longitude, column 2=Latitude
+
+phygen # object “phylo” equal to phylogenetic tree of the genera pool
+
+comgen # object “data.frame” equal to prescence/absence data, rows=sites, columns=genera
+
+comgenabun # object “data.frame” equal to abundance data, rows=sites, columns=genera
+
+dist.riv # object “data.frame” equal to distance between rivers pairwise, rows=195 sites, column=195 sites
+
+distO<-as.matrix(dist(coord,diag=T,upper=T))
+zeros<-which(dist.riv==0,arr.ind=T)
+
+for(i in 1:nrow(zeros)){
+dist.riv[zeros[i,1],zeros[i,2]]<-distO[zeros[i,1],zeros[i,2]]*111325
+}
+
+### get slope
+
+slp<-raster("slope_1KMmn_SRTM.tif") # raster of “slope_1KMmn_SRTM.tif”
+slope<-extract(slp,coord) #slope in each site
+
+temp<-raster("wc2.0_bio_2.5m_01.tif") # raster of “wc2.0_bio_2.5m_01.tif”
+tunido<-extract(temp,coord) # temperature in each site
+
+## get elevation 
+
+alt_peru<-raster("PER_alt.gri") # raster that includes Peruvian territory
+alt_colombia<-raster("COL_alt.gri") # raster that includes Colombian territory
+
+unido<-c(extract(alt_peru,coord)[1:180],extract(alt_colombia,coord)[181:195]) # altitude data of the 195 sites
+
+### get precipitacion (BIO 12)
+
+pp<-raster("wc2.0_bio_2.5m_12.tif") # raster of precipitation data
+ppunido<-extract(pp,coord) # precipitation data of the 195 sites
+
+### get Temperature Annual Range (BIO 7)
+
+tempr<-raster("wc2.0_bio_2.5m_07.tif") # raster of temperature range
+trunido<-extract(tempr,coord) # temperature range data of the 195 sites
+
+### get precipitation range (BIO 13 - BIO 14)
+
+b13<-raster("wc2.0_bio_2.5m_13.tif") # precipitation of wettest month
+b14<-raster("wc2.0_bio_2.5m_14.tif") # precipitation of driest month
+
+p13<-extract(b13,coord)
+p14<-extract(b14,coord)
+prunido<-p13-p14 # precipitation range of the 195 sites
+
+amb<-cbind(tunido,ppunido,trunido,prunido) # 4 climatic variables
+
+############## bio 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+
+b2<-raster("wc2.0_bio_2.5m_02.tif")
+b3<-raster("wc2.0_bio_2.5m_03.tif")
+b4<-raster("wc2.0_bio_2.5m_04.tif")
+b5<-raster("wc2.0_bio_2.5m_05.tif")
+b6<-raster("wc2.0_bio_2.5m_06.tif")
+b7<-raster("wc2.0_bio_2.5m_07.tif")
+b8<-raster("wc2.0_bio_2.5m_08.tif")
+b9<-raster("wc2.0_bio_2.5m_09.tif")
+b10<-raster("wc2.0_bio_2.5m_10.tif")
+b11<-raster("wc2.0_bio_2.5m_11.tif")
+b12<-raster("wc2.0_bio_2.5m_12.tif")
+b13<-raster("wc2.0_bio_2.5m_13.tif")
+b14<-raster("wc2.0_bio_2.5m_14.tif")
+b15<-raster("wc2.0_bio_2.5m_15.tif")
+b16<-raster("wc2.0_bio_2.5m_16.tif")
+b17<-raster("wc2.0_bio_2.5m_17.tif")
+b18<-raster("wc2.0_bio_2.5m_18.tif")
+b19<-raster("wc2.0_bio_2.5m_19.tif")
+
+#extract
+
+v1<-extract(b1,coord)
+v2<-extract(b2,coord)
+v3<-extract(b3,coord)
+v4<-extract(b4,coord)
+v5<-extract(b5,coord)
+v6<-extract(b6,coord)
+v7<-extract(b7,coord)
+v8<-extract(b8,coord)
+v9<-extract(b9,coord)
+v10<-extract(b10,coord)
+v11<-extract(b11,coord)
+v12<-extract(b12,coord)
+v13<-extract(b13,coord)
+v14<-extract(b14,coord)
+v15<-extract(b15,coord)
+v16<-extract(b16,coord)
+v17<-extract(b17,coord)
+v18<-extract(b18,coord)
+v19<-extract(b19,coord)
+
+# preanalisis
+
+# environmental
+
+envc<-cbind(v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19)
+
+pca<-prcomp(envc)
+
+(pca$sdev)^2
+acum<-numeric(19)
+for(i in 1:19){
+	acum[i]<-100*sum(((pca$sdev)^2)[1:i])/sum((pca$sdev)^2)
+	}
+acum ## We only took the first 4 eigenvectors "pca$x[,1:4]"
+
+## calculating phylogenetic eigenvectors
+
+p<-matrix.p(comgen,cophenetic(phygen))$matrix.P
+distphy<-sqrt(vegdist(p,method="bray"))
+pcoaf<-pcoa(distphy)
+#pcoaf$values[,c(1,5)]  #188 positive eigenvalues
+pcoafg<-pcoaf$vectors[,1:188]
+
+rdaf<-rda(decostand(comgenabun,"hellinger")~pcoaf$vectors[,1:188])
+r2adjf<-RsquareAdj(rdaf)$adj.r.squared
+self<-forward.sel(decostand(comgenabun,"hellinger"),pcoafg,adjR2thresh=r2adjf)
+pcnmSelf<-pcoafg[,self[,2]]
+
+# calculating spatial eigenvectors
+
+pcnmd<-pcnm(dist.riv)$vectors
+
+
+abuH<-decostand(comgenabun,"hellinger")
+
+rdad<-rda(abuH~pcnmd)
+r2adjd<-RsquareAdj(rdad)$adj.r.squared
+seld<-forward.sel(abuH, pcnmd,adjR2thresh=r2adjd)
+pcnmSeld<-pcnmd[,seld[,2]]
+
+## varpart
+
+#amb = 4 climatics, slope and elevation
+
+amb1<-cbind(amb, slope, unido)
+
+rdafinal1<-varpart(abuH,pcnmSeld,
+pcnmSelf,amb1) 
+plot(rdafinal1)
+
+#amb = 18 climatics, slope and elevation
+
+amb2<-cbind(mm[,-1],slope,unido)
+
+rdafinal2<-varpart(abuH,pcnmSeld,
+pcnmSelf,amb2) 
+plot(rdafinal2)
+
+#### END #####
