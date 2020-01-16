@@ -1,0 +1,42 @@
+###### Packages
+
+library(picante)
+library(ape)
+library(betapart)
+library(raster)
+
+# species composition (absence and presence) for each site
+
+Comgen # object “data.frame”, presence/absence data, rows=sites, columns=genera
+
+# phylogenetic tree
+
+phygen # object “phylo”, phylogenetic tree data
+
+
+## Calculating the NRI
+
+phydist <- cophenetic(phygen) # cophenetic distance matrix 
+ses.mpd.result <- ses.mpd(comgen, phydist, null.model="taxa.labels", 
+                          abundance.weighted=FALSE, runs=1000)
+
+## Calculating the NTI
+
+ses.mntd.result <- ses.mntd(comgen, phydist, 
+                            null.model="taxa.labels", abundance.weighted=FALSE, runs=1000) 
+
+
+## Calculating the phylogenetic diversity
+
+divphylo<-pd(comgen,phylo,include.root=T)
+
+setwd("C:/Users/Omar/Dropbox/tesis M/analise/dados/")
+coord1<-read.table("coordenadas.txt",header=T,sep="\t")
+coord<-coord1[,2:3]
+rownames(coord)<-coord1$X
+
+## Nestedness and turnover
+
+phylo.beta.multi(comgen,phylo, index.family="sorensen")
+
+##### END ######
