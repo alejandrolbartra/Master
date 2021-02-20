@@ -202,30 +202,29 @@ r2adj<-RsquareAdj(rda2)$adj.r.squared
 fselamb2<-forward.sel(abuH,amb2,adjR2thresh = r2adj)
 avamb2<-amb2[,fselamb2[,2]]
 
-rdafinal<-varpart(abuH,pcnmSeld,
-pcnmSelf,avamb2)
+rdafinal<-varpart(abuH,pcnmSeld,pcnmSelf,avamb2)
 plot(rdafinal)
 
 # testing signficance
 
 adfg2<-anova(rda(abuH~pcnmSeld,permutation=how(nperm=999)))
 bdeg2<-anova(rda(abuH~as.matrix(pcnmSelf),permutation=how(nperm=999)))
-cefg2<-anova(rda(abuH~avamb,permutation=how(nperm=999)))
+cefg2<-anova(rda(abuH~avamb2,permutation=how(nperm=999)))
 
 abdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-acdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,avamb), permutation=how(nperm=999)))
-bcdefg2<-anova(rda(abuH ~ cbind(avamb,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-abcdefg2<-anova(rda(abuH ~ cbind(avamb,pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+acdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,avamb2), permutation=how(nperm=999)))
+bcdefg2<-anova(rda(abuH ~ cbind(avamb2,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+abcdefg2<-anova(rda(abuH ~ cbind(avamb2,pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
 
-a2<-anova(rda(abuH,pcnmSeld, cbind(avamb,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-b2<-anova(rda(abuH,pcnmSelf, cbind(avamb,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
-c2<-anova(rda(abuH,avamb, cbind(pcnmSelf,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+a2<-anova(rda(abuH,pcnmSeld, cbind(avamb2,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+b2<-anova(rda(abuH,pcnmSelf, cbind(avamb2,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+c2<-anova(rda(abuH,avamb2, cbind(pcnmSelf,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
 
-ad2<-anova(rda(abuH,pcnmSeld,avamb, permutation=how(nperm=999)))
+ad2<-anova(rda(abuH,pcnmSeld,avamb2, permutation=how(nperm=999)))
 af2<-anova(rda(abuH,pcnmSeld,as.matrix(pcnmSelf), permutation=how(nperm=999)))
-bd2<-anova(rda(abuH,as.matrix(pcnmSelf),avamb, permutation=how(nperm=999)))
+bd2<-anova(rda(abuH,as.matrix(pcnmSelf),avamb2, permutation=how(nperm=999)))
 be2<-anova(rda(abuH,as.matrix(pcnmSelf),pcnmSeld, permutation=how(nperm=999)))
-ce2<-anova(rda(abuH,avamb,pcnmSeld, permutation=how(nperm=999)))
-cf2<-anova(rda(abuH,avamb,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+ce2<-anova(rda(abuH,avamb2,pcnmSeld, permutation=how(nperm=999)))
+cf2<-anova(rda(abuH,avamb2,as.matrix(pcnmSelf), permutation=how(nperm=999)))
 
 ############ END
