@@ -1,10 +1,13 @@
-## packages
+# packages
 
 library(ape)
 library(vegan)
+library(riverdist)
 library(raster)
 library(SYNCSA)
 library(adespatial)
+
+# objects
 
 coord # object “data.frame” equal to geographical coordinates, column 1=Longitude, column 2=Latitude
 
@@ -16,63 +19,92 @@ comgenabun # object “data.frame” equal to abundance data, rows=sites, column
 
 dist.riv # object “data.frame” equal to distance between rivers pairwise, rows=195 sites, column=195 sites
 
+## calculating the distance between sites
+# importing the shape of the Amazon basin
+
+B<-line2network(path="amzriverproje",layer="amzriverproje") # "amzriverproje.shp" is a lines layer
+
+# Cleanup of the river network B 
+
+C<-cleanup(B)
+y $disolve?
+y $insert points
+100 $ minimum distance to use
+171 $ segment number of river mouth
+240 $ vertex number of river mouth
+y $ accept mouth assignement
+r $ remove region 1
+r $ remove region 2
+r $ remove region 3
+r $ remove region 4
+n $ not remove any additional segments?
+  y $ build segment routes?
+
+cord.dec <- SpatialPoints(cbind(coord$Longitude, coord$Latitude), proj4string=CRS("+proj=longlat"))
+cord.UTM <- spTransform(cord.dec, CRS("+init=epsg:32718"))
+
+coordriv<-xy2segvert(x=cord.UTM$coords.x1,y=cord.UTM$coords.x2,rivers=C)
+
+# distance between the sites considering the watercourse
+
+dist.riv<-riverdistancemat(seg=coordriv$seg, vert=coordriv$vert, rivers=C,stopiferror=TRUE,
+                            algorithm="Dijkstra")
+
+# changing the incorrect zero distances to geographic distance
+
+copyc<-dist.riv
 distO<-as.matrix(dist(coord,diag=T,upper=T))
-zeros<-which(dist.riv==0,arr.ind=T)
+zeros<-which(copy==0,arr.ind=T)
 
 for(i in 1:nrow(zeros)){
-dist.riv[zeros[i,1],zeros[i,2]]<-distO[zeros[i,1],zeros[i,2]]*111325
+copyc[zeros[i,1],zeros[i,2]]<-distO[zeros[i,1],zeros[i,2]]*111325
 }
 
-### get slope
+# importing slope
 
-slp<-raster("slope_1KMmn_SRTM.tif") # raster of “slope_1KMmn_SRTM.tif”
-slope<-extract(slp,coord) #slope in each site
+slp<-raster("slope_1KMmn_SRTM.tif")
+slope<-extract(slp,coord)
 
-temp<-raster("wc2.0_bio_2.5m_01.tif") # raster of “wc2.0_bio_2.5m_01.tif”
-tunido<-extract(temp,coord) # temperature in each site
+# importing elevation 
 
-## get elevation 
+elevation<-raster("PER_alt.gri")
+elev<-extract(elevation,coord)
 
-alt_peru<-raster("PER_alt.gri") # raster that includes Peruvian territory
-alt_colombia<-raster("COL_alt.gri") # raster that includes Colombian territory
+# importing precipitacion of WorldClim (BIO 12)
 
-unido<-c(extract(alt_peru,coord)[1:180],extract(alt_colombia,coord)[181:195]) # altitude data of the 195 sites
+pp<-raster("wc2.0_bio_2.5m_12.tif")
+precip<-extract(pp,coord)
+b12<-pp
 
-### get precipitacion (BIO 12)
+# importing Temperature Annual Range of WorldClim (BIO 7)
 
-pp<-raster("wc2.0_bio_2.5m_12.tif") # raster of precipitation data
-ppunido<-extract(pp,coord) # precipitation data of the 195 sites
+temperaturer<-raster("wc2.0_bio_2.5m_07.tif")
+tempr<-extract(temperaturer,coord)
+b7<-temperaturer
 
-### get Temperature Annual Range (BIO 7)
+# importing precipitation range based on WorldClim (BIO 13 - BIO 14)
 
-tempr<-raster("wc2.0_bio_2.5m_07.tif") # raster of temperature range
-trunido<-extract(tempr,coord) # temperature range data of the 195 sites
-
-### get precipitation range (BIO 13 - BIO 14)
-
-b13<-raster("wc2.0_bio_2.5m_13.tif") # precipitation of wettest month
-b14<-raster("wc2.0_bio_2.5m_14.tif") # precipitation of driest month
+b13<-raster("wc2.0_bio_2.5m_13.tif")
+b14<-raster("wc2.0_bio_2.5m_14.tif")
 
 p13<-extract(b13,coord)
 p14<-extract(b14,coord)
-prunido<-p13-p14 # precipitation range of the 195 sites
+precipr<- p13-p14
 
-amb<-cbind(tunido,ppunido,trunido,prunido) # 4 climatic variables
+amb<-cbind(slope,elev,precip,tempr,precipr)
 
-############## bio 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+# importing raster of BIO variables of WorldClim (BIO 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15, 16,17, 18, 19)
 
 b2<-raster("wc2.0_bio_2.5m_02.tif")
 b3<-raster("wc2.0_bio_2.5m_03.tif")
 b4<-raster("wc2.0_bio_2.5m_04.tif")
 b5<-raster("wc2.0_bio_2.5m_05.tif")
 b6<-raster("wc2.0_bio_2.5m_06.tif")
-b7<-raster("wc2.0_bio_2.5m_07.tif")
 b8<-raster("wc2.0_bio_2.5m_08.tif")
 b9<-raster("wc2.0_bio_2.5m_09.tif")
 b10<-raster("wc2.0_bio_2.5m_10.tif")
 b11<-raster("wc2.0_bio_2.5m_11.tif")
 b12<-raster("wc2.0_bio_2.5m_12.tif")
-b13<-raster("wc2.0_bio_2.5m_13.tif")
 b14<-raster("wc2.0_bio_2.5m_14.tif")
 b15<-raster("wc2.0_bio_2.5m_15.tif")
 b16<-raster("wc2.0_bio_2.5m_16.tif")
@@ -80,7 +112,7 @@ b17<-raster("wc2.0_bio_2.5m_17.tif")
 b18<-raster("wc2.0_bio_2.5m_18.tif")
 b19<-raster("wc2.0_bio_2.5m_19.tif")
 
-#extract
+# extract of values of each BIO of each site
 
 v1<-extract(b1,coord)
 v2<-extract(b2,coord)
@@ -102,62 +134,98 @@ v17<-extract(b17,coord)
 v18<-extract(b18,coord)
 v19<-extract(b19,coord)
 
-# preanalisis
+# pre analysis
 
-# environmental
+# all environmental variables related to WorldClim (without BIO 1)
 
-envc<-cbind(v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19)
+mm<-cbind(v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19)
 
-pca<-prcomp(envc)
-
-(pca$sdev)^2
-acum<-numeric(19)
-for(i in 1:19){
-	acum[i]<-100*sum(((pca$sdev)^2)[1:i])/sum((pca$sdev)^2)
-	}
-acum ## We only took the first 4 eigenvectors "pca$x[,1:4]"
-
-## calculating phylogenetic eigenvectors
+# calculating the phylogenetic eigenvectors
 
 p<-matrix.p(comgen,cophenetic(phygen))$matrix.P
 distphy<-sqrt(vegdist(p,method="bray"))
-pcoaf<-pcoa(distphy)
-#pcoaf$values[,c(1,5)]  #188 positive eigenvalues
-pcoafg<-pcoaf$vectors[,1:188]
-
-rdaf<-rda(decostand(comgenabun,"hellinger")~pcoaf$vectors[,1:188])
-r2adjf<-RsquareAdj(rdaf)$adj.r.squared
-self<-forward.sel(decostand(comgenabun,"hellinger"),pcoafg,adjR2thresh=r2adjf)
-pcnmSelf<-pcoafg[,self[,2]]
-
-# calculating spatial eigenvectors
-
-pcnmd<-pcnm(dist.riv)$vectors
-
+pcoaf<-pcoa(distphy)				
+pcoafg<-pcoaf$vectors[,1:173] # 173 positives eigenvalues
 
 abuH<-decostand(comgenabun,"hellinger")
 
+rdaf<-rda(abuH ~ pcoafg)
+r2adjf<-RsquareAdj(rdaf)$adj.r.squared
+self<-forward.sel(abuH,pcoafg,adjR2thresh=r2adjf)
+pcnmSelf<-pcoafg[,self[,2]]
+
+# calculating the spatial eigenvectors
+
+pcnmd<-pcnm(copyc)$vectors
 rdad<-rda(abuH~pcnmd)
 r2adjd<-RsquareAdj(rdad)$adj.r.squared
-seld<-forward.sel(abuH, pcnmd,adjR2thresh=r2adjd)
+seld<-forward.sel(abuH,pcnmd,adjR2thresh=r2adjd)
 pcnmSeld<-pcnmd[,seld[,2]]
 
 ## varpart
 
-#amb = 4 climatics, slope and elevation
+# amb1 = slope, elevation and 3 climatic variables
 
-amb1<-cbind(amb, slope, unido)
+amb1<- amb
 
-rdafinal1<-varpart(abuH,pcnmSeld,
-pcnmSelf,amb1) 
-plot(rdafinal1)
+rdafinal<-varpart(abuH,pcnmSeld,pcnmSelf,amb1)
+plot(rdafinal)
 
-#amb = 18 climatics, slope and elevation
+# testing signficance
 
-amb2<-cbind(mm[,-1],slope,unido)
+adfg1<-anova(rda(abuH~pcnmSeld,permutation=how(nperm=999)))
+bdeg1<-anova(rda(abuH~as.matrix(pcnmSelf),permutation=how(nperm=999)))
+cefg1<-anova(rda(abuH~amb1,permutation=how(nperm=999)))
 
-rdafinal2<-varpart(abuH,pcnmSeld,
-pcnmSelf,amb2) 
-plot(rdafinal2)
+abdefg1<-anova(rda(abuH ~ cbind(pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+acdefg1<-anova(rda(abuH ~ cbind(pcnmSeld,amb1), permutation=how(nperm=999)))
+bcdefg1<-anova(rda(abuH ~ cbind(amb1,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+abcdefg1<-anova(rda(abuH ~ cbind(amb1,pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
 
-#### END #####
+a1<-anova(rda(abuH,pcnmSeld, cbind(amb1,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+b1<-anova(rda(abuH,pcnmSelf, cbind(amb1,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+c1<-anova(rda(abuH,avamb, cbind(pcnmSelf,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+
+ad1<-anova(rda(abuH,pcnmSeld,amb1, permutation=how(nperm=999)))
+af1<-anova(rda(abuH,pcnmSeld,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+bd1<-anova(rda(abuH,as.matrix(pcnmSelf),amb1, permutation=how(nperm=999)))
+be1<-anova(rda(abuH,as.matrix(pcnmSelf),pcnmSeld, permutation=how(nperm=999)))
+ce1<-anova(rda(abuH,amb1,pcnmSeld, permutation=how(nperm=999)))
+cf1<-anova(rda(abuH,amb1,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+
+# amb2 = 18 climatics variables, slope and elevation
+
+amb2<-cbind(mm,slope,unido)
+
+rda2<-rda(abuH~amb2)
+r2adj<-RsquareAdj(rda2)$adj.r.squared
+fselamb2<-forward.sel(abuH,amb2,adjR2thresh = r2adj)
+avamb2<-amb2[,fselamb2[,2]]
+
+rdafinal<-varpart(abuH,pcnmSeld,
+pcnmSelf,avamb2)
+plot(rdafinal)
+
+# testing signficance
+
+adfg2<-anova(rda(abuH~pcnmSeld,permutation=how(nperm=999)))
+bdeg2<-anova(rda(abuH~as.matrix(pcnmSelf),permutation=how(nperm=999)))
+cefg2<-anova(rda(abuH~avamb,permutation=how(nperm=999)))
+
+abdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+acdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,avamb), permutation=how(nperm=999)))
+bcdefg2<-anova(rda(abuH ~ cbind(avamb,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+abcdefg2<-anova(rda(abuH ~ cbind(avamb,pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+
+a2<-anova(rda(abuH,pcnmSeld, cbind(avamb,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
+b2<-anova(rda(abuH,pcnmSelf, cbind(avamb,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+c2<-anova(rda(abuH,avamb, cbind(pcnmSelf,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+
+ad2<-anova(rda(abuH,pcnmSeld,avamb, permutation=how(nperm=999)))
+af2<-anova(rda(abuH,pcnmSeld,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+bd2<-anova(rda(abuH,as.matrix(pcnmSelf),avamb, permutation=how(nperm=999)))
+be2<-anova(rda(abuH,as.matrix(pcnmSelf),pcnmSeld, permutation=how(nperm=999)))
+ce2<-anova(rda(abuH,avamb,pcnmSeld, permutation=how(nperm=999)))
+cf2<-anova(rda(abuH,avamb,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+
+############ END
