@@ -70,75 +70,17 @@ slope<-extract(slp,coord)
 elevation<-raster("PER_alt.gri")
 elev<-extract(elevation,coord)
 
-# importing precipitacion of WorldClim (BIO 12)
+# importing precipitacion (BIO 12), Temperature Annual Range (BIO 7) and precipitation range (BIO 13 - BIO 14)
 
-pp<-raster("wc2.0_bio_2.5m_12.tif")
-precip<-extract(pp,coord)
-b12<-pp
+rasterBIO<-getData("worldclim",var="bio",res=0.5,lon=c(-77.8,-70.5),lat=c(-7.3,-0.1))
 
-# importing Temperature Annual Range of WorldClim (BIO 7)
+var<-extract(rasterBIO,coord)
 
-temperaturer<-raster("wc2.0_bio_2.5m_07.tif")
-tempr<-extract(temperaturer,coord)
-b7<-temperaturer
-
-# importing precipitation range based on WorldClim (BIO 13 - BIO 14)
-
-b13<-raster("wc2.0_bio_2.5m_13.tif")
-b14<-raster("wc2.0_bio_2.5m_14.tif")
-
-p13<-extract(b13,coord)
-p14<-extract(b14,coord)
-precipr<- p13-p14
-
-amb<-cbind(slope,elev,precip,tempr,precipr)
-
-# importing raster of BIO variables of WorldClim (BIO 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15, 16,17, 18, 19)
-
-b2<-raster("wc2.0_bio_2.5m_02.tif")
-b3<-raster("wc2.0_bio_2.5m_03.tif")
-b4<-raster("wc2.0_bio_2.5m_04.tif")
-b5<-raster("wc2.0_bio_2.5m_05.tif")
-b6<-raster("wc2.0_bio_2.5m_06.tif")
-b8<-raster("wc2.0_bio_2.5m_08.tif")
-b9<-raster("wc2.0_bio_2.5m_09.tif")
-b10<-raster("wc2.0_bio_2.5m_10.tif")
-b11<-raster("wc2.0_bio_2.5m_11.tif")
-b12<-raster("wc2.0_bio_2.5m_12.tif")
-b14<-raster("wc2.0_bio_2.5m_14.tif")
-b15<-raster("wc2.0_bio_2.5m_15.tif")
-b16<-raster("wc2.0_bio_2.5m_16.tif")
-b17<-raster("wc2.0_bio_2.5m_17.tif")
-b18<-raster("wc2.0_bio_2.5m_18.tif")
-b19<-raster("wc2.0_bio_2.5m_19.tif")
-
-# extract of values of each BIO of each site
-
-v1<-extract(b1,coord)
-v2<-extract(b2,coord)
-v3<-extract(b3,coord)
-v4<-extract(b4,coord)
-v5<-extract(b5,coord)
-v6<-extract(b6,coord)
-v7<-extract(b7,coord)
-v8<-extract(b8,coord)
-v9<-extract(b9,coord)
-v10<-extract(b10,coord)
-v11<-extract(b11,coord)
-v12<-extract(b12,coord)
-v13<-extract(b13,coord)
-v14<-extract(b14,coord)
-v15<-extract(b15,coord)
-v16<-extract(b16,coord)
-v17<-extract(b17,coord)
-v18<-extract(b18,coord)
-v19<-extract(b19,coord)
+var1<-var[,c(7,12,13,14)]
+var2<-cbind(var1[,2],var[,1],var[,3]-var[,4])
+amb<-cbind(var2,slope,elev)
 
 # pre analysis
-
-# all environmental variables related to WorldClim (without BIO 1)
-
-mm<-cbind(v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16,v17,v18,v19)
 
 # calculating the phylogenetic eigenvectors
 
@@ -195,7 +137,7 @@ cf1<-anova(rda(abuH,amb1,as.matrix(pcnmSelf), permutation=how(nperm=999)))
 
 # amb2 = 18 climatics variables, slope and elevation
 
-amb2<-cbind(mm,slope,unido)
+amb2<-cbind(var[,-1],slope,unido)
 
 rda2<-rda(abuH~amb2)
 r2adj<-RsquareAdj(rda2)$adj.r.squared
