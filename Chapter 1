@@ -13,9 +13,9 @@ coord # object “data.frame” equal to geographical coordinates, column 1=Long
 
 phygen # object “phylo” equal to phylogenetic tree of the genera pool
 
-comgen # object “data.frame” equal to prescence/absence data, rows=sites, columns=genera
-
 comgenabun # object “data.frame” equal to abundance data, rows=sites, columns=genera
+
+comspeabun # object “data.frame” equal to abundance data, rows=sites, columns=species
 
 dist.riv # object “data.frame” equal to distance between rivers pairwise, rows=195 sites, column=195 sites
 
@@ -80,7 +80,122 @@ var1<-var[,c(7,12,13,14)]
 var2<-cbind(var1[,2],var[,1],var[,3]-var[,4])
 amb<-cbind(var2,slope,elev)
 
+# writing subsets of Rabosky's trees for genera
+
+library(ape)
+library(stringr)
+library(dispRity)
+library(RRphylo)
+
+# lack object detect which genera of our genera pool are not in the 
+# Rabosky's tree, in our case, Paratrygon and Potamotrygon
+lack<-as.list(NA) 
+
+for(j in 1:100){ # 100 Rabosky's trees
+  
+  #We used the original name from Rabosky et al (2018)
+  tree<-read.tree(file=paste(j,"newick.tre",sep="."))
+  
+  c<-rep(NA,length(tree$tip.label))
+  
+  for(i in 1:length(rownames(comgenabun))){
+    c[which(str_detect(tree$tip.label,paste(rownames(comgenabun)[i],
+    "_",sep="")))]<-rep(i,sum(str_detect(tree$tip.label,
+    paste(rownames(comgenabun)[i], "_",sep=""))))
+  }
+  
+  d<-unique(c)[!is.na(unique(c))]
+  lack[[j]]<-setdiff(1:length(rownames(comgenabun)),d)
+  
+  for(k in 1:length(rownames(comgenabun))){
+    if(sum(c[!is.na(c)]==k)>0){
+      tree$tip.label[min(which(c==k))]<-rownames(comgenabun)[k]
+    }
+  }
+  
+  tree<-keep.tip(tree,rownames(comgenabun)[-lack[[j]]])
+  
+  T<-473-tree.age(tree,order="present")[1,1]
+  treetext<-substr(write.tree(tree),1,nchar(write.tree(tree))-1)
+  
+  #adding Paratrygon and Potamotrygon
+  tree<-read.tree(text=paste("((Paratrygon:236.5,Potamotrygon:236.5):236.5,",
+                             treetext,":",T,");"))
+  
+  write.tree(tree,file=paste("newicktre",j,".txt",sep=""))
+  
+}
+
+# writing subsets of Rabosky's trees for species
+
+library(ape)
+library(stringr)
+library(dispRity)
+library(RRphylo)
+
+# lack object detect which species of our species pool are 
+# not in the Rabosky's tree (we also tried to detect congeners instead of 
+# exactly the same species names), in our case, Paratrygon aiereba, 
+# Potamotrygon motoro and Potamotrygon orbignyi
+lack<-as.list(NA)
+
+for(j in 1:100){ # 100 trees
+  
+  tree<-read.tree(file=paste(j,"newick.tre",sep="."))
+  # "edge"        "edge.length" "Nnode"       "tip.label" 
+  
+  c<-rep(0,length(tree$tip.label))
+  e<-rep(0,length(rownames(comspeabun)))
+  for(i in 1:length(rownames(comspeabun))){
+    if(sum(tree$tip.label==rownames(comspeabun)[i])>0){
+      c[which(tree$tip.label==rownames(comspeabun)[i])]<-i
+    } else {
+      e[i]<-1
+    }
+    
+  }
+  
+  for(k in which(e==1)){
+    gen<-paste(str_split(rownames(comspeabun)[k],"_")[[1]][1],"_",sep="")
+    if(sum(str_detect(tree$tip.label,gen))==0){
+      e[k]<-1
+    } else {
+      if( sum(c[which(str_detect(tree$tip.label,gen))]==0)>0 ){
+        ind<-min(which(c[which(str_detect(tree$tip.label,gen))]==0))
+        c[which(str_detect(tree$tip.label,gen))[ind]]<-k
+        tree$tip.label[which(str_detect(tree$tip.label,gen))[ind]]<-
+          rownames(comspeabun)[k]
+        e[k]<-0
+      } else {
+        e[k]<-1
+      }
+    }
+  }
+  
+  d<-unique(c)[0!=unique(c)]
+  lack[[j]]<-setdiff(1:length(rownames(comspeabun)),d)
+  
+  tree<-keep.tip(tree,rownames(comspeabun)[-lack[[j]]])
+  
+  treetext<-substr(write.tree(tree),1,nchar(write.tree(tree))-1)
+  T<-473-tree.age(tree,order="present")[1,1]
+  
+  #adding aratrygon aiereba, Potamotrygon motoro and Potamotrygon orbignyi
+  tree<-read.tree(text=paste("((Paratrygon_aiereba:236.5,(Potamotrygon_motoro:
+        118.25,Potamotrygon_orbignyi:118.25):118.25):236.5,",
+        treetext,":",T,");"))
+  
+  write.tree(tree,file=paste("newicktres",j,".txt",sep=""))
+  
+}
+
 # pre analysis
+
+abuH<-decostand(comgenabun,"hellinger")
+
+#comgen = object “data.frame” equal to prescence/absence data, rows=sites, columns=genera
+comgen<-comgenabun
+comgen[comgen>0]<-1
 
 # calculating the phylogenetic eigenvectors
 
@@ -88,8 +203,6 @@ p<-matrix.p(comgen,cophenetic(phygen))$matrix.P
 distphy<-sqrt(vegdist(p,method="bray"))
 pcoaf<-pcoa(distphy)				
 pcoafg<-pcoaf$vectors[,1:173] # 173 positives eigenvalues
-
-abuH<-decostand(comgenabun,"hellinger")
 
 rdaf<-rda(abuH ~ pcoafg)
 r2adjf<-RsquareAdj(rdaf)$adj.r.squared
@@ -108,65 +221,37 @@ pcnmSeld<-pcnmd[,seld[,2]]
 
 # amb1 = slope, elevation and 3 climatic variables
 
-amb1<- amb
+# 3 climatics, slope and elevation
 
-rdafinal<-varpart(abuH,pcnmSeld,pcnmSelf,amb1)
-plot(rdafinal)
+rdaalltree1<-matrix(rep(NA,800),ncol=8,nrow=100)
+for(j in 1:100){
+rdafinal<-varpart(abugH,pcnmSeld,listpcnmf[[j]],var3) 
+rdaalltree1[j,]<-rdafinal$part$indfract[,3]
+}
 
-# testing signficance (related to the object rdfinal)
+summary(rdaalltree1*100)
 
-adfg1<-anova(rda(abuH~pcnmSeld,permutation=how(nperm=999)))
-bdeg1<-anova(rda(abuH~as.matrix(pcnmSelf),permutation=how(nperm=999)))
-cefg1<-anova(rda(abuH~amb1,permutation=how(nperm=999)))
+boxplot(100*rdaalltree1[,c(1,3)])
+t.test(rdaalltree1[,1],rdaalltree1[,3],paired=T,alternative="greater")
 
-abdefg1<-anova(rda(abuH ~ cbind(pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-acdefg1<-anova(rda(abuH ~ cbind(pcnmSeld,amb1), permutation=how(nperm=999)))
-bcdefg1<-anova(rda(abuH ~ cbind(amb1,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-abcdefg1<-anova(rda(abuH ~ cbind(amb1,pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
 
-a1<-anova(rda(abuH,pcnmSeld, cbind(amb1,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-b1<-anova(rda(abuH,pcnmSelf, cbind(amb1,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
-c1<-anova(rda(abuH,avamb, cbind(pcnmSelf,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
+#amb2 = 18 climatics, slope and elevation
 
-ad1<-anova(rda(abuH,pcnmSeld,amb1, permutation=how(nperm=999)))
-af1<-anova(rda(abuH,pcnmSeld,as.matrix(pcnmSelf), permutation=how(nperm=999)))
-bd1<-anova(rda(abuH,as.matrix(pcnmSelf),amb1, permutation=how(nperm=999)))
-be1<-anova(rda(abuH,as.matrix(pcnmSelf),pcnmSeld, permutation=how(nperm=999)))
-ce1<-anova(rda(abuH,amb1,pcnmSeld, permutation=how(nperm=999)))
-cf1<-anova(rda(abuH,amb1,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+var4<-cbind(var[,-1],slope,elev)
 
-# amb2 = 18 climatics variables, slope and elevation
-
-amb2<-cbind(var[,-1],slope,unido)
-
-rda2<-rda(abuH~amb2)
+rda2<-rda(abugH~var4)
 r2adj<-RsquareAdj(rda2)$adj.r.squared
-fselamb2<-forward.sel(abuH,amb2,adjR2thresh = r2adj)
-avamb2<-amb2[,fselamb2[,2]]
+fselamb<-forward.sel(abugH,var4,adjR2thresh = r2adj)
+var5<-var4[,fselamb[,2]]
 
-rdafinal2<-varpart(abuH,pcnmSeld,pcnmSelf,avamb2)
-plot(rdafinal)
+rdaalltree2<-matrix(rep(NA,800),ncol=8,nrow=100)
+for(k in 1:100){
+rdafinal<-varpart(abugH,pcnmSeld,listpcnmf[[k]],var5)
+rdaalltree2[k,]<-rdafinal$part$indfract[,3]
+}
 
-# testing signficance (related to the object rdafinal2)
-
-adfg2<-anova(rda(abuH~pcnmSeld,permutation=how(nperm=999)))
-bdeg2<-anova(rda(abuH~as.matrix(pcnmSelf),permutation=how(nperm=999)))
-cefg2<-anova(rda(abuH~avamb2,permutation=how(nperm=999)))
-
-abdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-acdefg2<-anova(rda(abuH ~ cbind(pcnmSeld,avamb2), permutation=how(nperm=999)))
-bcdefg2<-anova(rda(abuH ~ cbind(avamb2,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-abcdefg2<-anova(rda(abuH ~ cbind(avamb2,pcnmSeld,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-
-a2<-anova(rda(abuH,pcnmSeld, cbind(avamb2,as.matrix(pcnmSelf)), permutation=how(nperm=999)))
-b2<-anova(rda(abuH,pcnmSelf, cbind(avamb2,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
-c2<-anova(rda(abuH,avamb2, cbind(pcnmSelf,as.matrix(pcnmSeld)), permutation=how(nperm=999)))
-
-ad2<-anova(rda(abuH,pcnmSeld,avamb2, permutation=how(nperm=999)))
-af2<-anova(rda(abuH,pcnmSeld,as.matrix(pcnmSelf), permutation=how(nperm=999)))
-bd2<-anova(rda(abuH,as.matrix(pcnmSelf),avamb2, permutation=how(nperm=999)))
-be2<-anova(rda(abuH,as.matrix(pcnmSelf),pcnmSeld, permutation=how(nperm=999)))
-ce2<-anova(rda(abuH,avamb2,pcnmSeld, permutation=how(nperm=999)))
-cf2<-anova(rda(abuH,avamb2,as.matrix(pcnmSelf), permutation=how(nperm=999)))
+summary(100*rdaalltree2)
+boxplot(100*rdaalltree2[,c(1,3)])
+t.test(rdaalltree2[,1],rdaalltree2[,3],paired=T,alternative="greater")
 
 ############ END
